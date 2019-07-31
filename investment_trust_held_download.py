@@ -9,6 +9,7 @@ import traceback
 import csv
 import datetime
 from selenium.webdriver.common.keys import Keys
+import threading
 
 #投資信託保有残高照会処理
 def inquiryInvestmentTrustHeld(csvPath):
@@ -18,7 +19,7 @@ def inquiryInvestmentTrustHeld(csvPath):
         driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe',chrome_options=options)
 
         #ログイン画面にアクセスする
-        driver.get('https://???.co.jp/')
+        driver.get('https://???')
 
         #「ログインID」「パスワード」入力してログインする
         driver.find_element_by_id('loginid').send_keys('???')
@@ -80,8 +81,10 @@ def inquiryInvestmentTrustHeld(csvPath):
             writer = csv.writer(csv_file)
             writer.writerows(rows)
 
+        messagebox.showinfo('ダウンロード完了', '投資信託保有残高のダウンロードが完了しました。')
+
     except:
-        return '例外が発生しました。\n(' + traceback.format_exc() + ')'
+        messagebox.showerror('異常終了', '例外が発生しました。\n(' + traceback.format_exc() + ')')
 
     finally:
         if driver is not None:
@@ -93,15 +96,11 @@ def investmentTrustHeld_click():
         messagebox.showwarning('保存先未設定', '投資信託保有残高の保存先を設定してください。')
         return
 
-    #投資信託保有残高照会処理を呼び出す
+    #投資信託保有残高照会処理を別スレッドで実行
     ymdHMS = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     csvPath = pathText.get() + '\\InvestmentTrustHeld' + ymdHMS + '.csv'
-    result = inquiryInvestmentTrustHeld(csvPath)
-
-    if result:
-        messagebox.showerror('異常終了', '例外が発生しました。\n(' + result + ')')
-    else:
-        messagebox.showinfo('ダウンロード完了', '投資信託保有残高のダウンロードが完了しました。')
+    th = threading.Thread(target=inquiryInvestmentTrustHeld, args=([csvPath]))
+    th.start()
 
 #「参照」ボタン押下時処理
 def pathButton_click():

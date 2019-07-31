@@ -9,6 +9,7 @@ from tkinter import messagebox, filedialog
 import traceback
 import csv
 from selenium.webdriver.common.keys import Keys
+import threading
 
 #「カード利用明細をダウンロード」ボタン押下時処理
 def downloadCreditCardStatement(downloadMonth, csvPath):
@@ -25,8 +26,9 @@ def downloadCreditCardStatement(downloadMonth, csvPath):
         driver.find_element_by_name('p').send_keys('???')
         driver.find_element_by_name('p').send_keys(Keys.ENTER)
 
-        #トップページの「明細を見る」ボタンを押下で画面遷移させる
-        driver.find_element_by_id('js-fix-chargeAmount-02').find_element_by_tag_name('a').click()
+        #トップページの「明細を見る」ボタンを押下(ボタン押下できなくなったので、URLを指定して画面遷移)
+        url = driver.find_element_by_id('js-bill-mask').find_element_by_class_name('rf-button-alt').get_attribute('href')
+        driver.get(url)
 
         if downloadMonth == 1:
             #前月の明細を取得する場合は「前月」ボタンを押下する
@@ -35,8 +37,8 @@ def downloadCreditCardStatement(downloadMonth, csvPath):
             #翌月の明細を取得する場合は「次月」ボタンを押下する
             driver.find_element_by_class_name('stmt-calendar__cmd__next').click()
 
-        #「詳細を全て見る」ボタンをクリックする(todo)
-        #driver.find_element_by_class_name('when-close').click()
+        #「詳細を全て見る」ボタンをクリックする
+        driver.find_element_by_class_name('stmt-current-payment-list').find_element_by_tag_name('span').click()
 
         #画面に表示している内容から、利用明細の部分を取得する
         detailRows = driver.find_elements_by_class_name('stmt-payment-lists__i')
@@ -60,8 +62,10 @@ def downloadCreditCardStatement(downloadMonth, csvPath):
             writer = csv.writer(csv_file)
             writer.writerows(rows)
 
+        messagebox.showinfo('ダウンロード完了', '入出金明細のダウンロードが完了しました。')
+
     except:
-        return '例外が発生しました。\n(' + traceback.format_exc() + ')'
+        messagebox.showerror('異常終了', '例外が発生しました。\n(' + traceback.format_exc() + ')')
 
     finally:
         if driver is not None:
@@ -85,14 +89,10 @@ def downloadCreditCardStatement_click():
         #翌月の利用明細をダウンロードする場合
         yearMonth = (now - relativedelta(months=1)).strftime('%Y%m')
 
-    #カード利用明細を作成する
+    #カード利用明細のダウンロードを別スレッドで実行
     csvPath = pathText.get() + '\\enavi' + yearMonth + '(9893).csv'
-    result = downloadCreditCardStatement(downloadMonth, csvPath)
-
-    if result:
-        messagebox.showerror('異常終了', '例外が発生しました。\n(' + result + ')')
-    else:
-        messagebox.showinfo('ダウンロード完了', '入出金明細のダウンロードが完了しました。')
+    th = threading.Thread(target=downloadCreditCardStatement, args=([downloadMonth, csvPath]))
+    th.start()
 
 #「参照」ボタン押下時処理
 def pathButton_click():
@@ -104,8 +104,7 @@ def pathButton_click():
 
 #「終了」ボタン押下時処理
 def exitButton_click():
-    if messagebox.askokcancel('終了','終了します。よろしいですか？')==True:
-        quit()
+    quit()
 
 root = Tk()
 root.title('credit_card_statement_download')
