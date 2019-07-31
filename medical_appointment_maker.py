@@ -7,7 +7,7 @@ from tkinter import messagebox
 import traceback
 from selenium.webdriver.support.ui import Select
 import time
-from selenium.common.exceptions import TimeoutException
+import threading
 
 #診察予約取得処理
 def makeMedicalAppointment(waitingTime):
@@ -16,13 +16,7 @@ def makeMedicalAppointment(waitingTime):
         options.add_argument('--headless')
         driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe', chrome_options=options)
         #クリニックのトップページにアクセスする
-        driver.get('https://???.???.co.jp/')
-
-        '''
-        wait = WebDriverWait(driver, float(waitingTime))
-        button = wait.until(expected_conditions.visibility_of_element_located((By.ID, 'aTRN')))
-        button.click()
-        '''
+        driver.get('https://???')
 
         #トップページに「いますぐ受付」ボタンが現れるまで、トップページを再表示させつつ指定秒数監視する(todo)
         _time = 1
@@ -32,7 +26,8 @@ def makeMedicalAppointment(waitingTime):
                 break
             _time +=1
             if _time > int(waitingTime):
-                return '待機時間内に予約可能になりませんでした。'
+                messagebox.showerror('予約失敗', '待機時間内に予約可能になりませんでした。')
+                return
             time.sleep(1)
 
         #「いますぐ受付」ボタン押下で画面遷移させる
@@ -44,8 +39,8 @@ def makeMedicalAppointment(waitingTime):
         driver.find_element_by_xpath("//input[@type='submit']").click()
 
         #「診察券番号」と「誕生日」を入力して、「次へ」ボタン押下で画面遷移させる
-        driver.find_element_by_name('HOSID').send_keys('?????')
-        driver.find_element_by_name('b_date').send_keys('????')
+        driver.find_element_by_name('HOSID').send_keys('???')
+        driver.find_element_by_name('b_date').send_keys('???')
         driver.find_element_by_xpath("//input[@type='submit']").click()
 
         #「はい」ボタン押下で画面遷移させる
@@ -55,13 +50,10 @@ def makeMedicalAppointment(waitingTime):
         driver.find_element_by_xpath("//input[@type='submit']").click()
 
         #何番目に予約が取れたか返却する
-        return driver.find_elements_by_tag_name('font')[2].text
-
-    except TimeoutException:
-        return '待機時間内に予約可能になりませんでした。'
+        messagebox.showinfo('予約完了', '予約が完了しました。' + driver.find_elements_by_tag_name('font')[2].text + 'です。')
 
     except:
-        return '例外が発生しました。\n(' + traceback.format_exc() + ')'
+        messagebox.showerror('予約失敗', '例外が発生しました。\n(' + traceback.format_exc() + ')')
 
     finally:
         if driver is not None:
@@ -76,21 +68,15 @@ def medicalAppointmentButton_click():
 
     if waitingTime.isdecimal():
         #待機時間が正しく入力されていれば、予約処理を開始する
-        result = makeMedicalAppointment(waitingTime)
+        th = threading.Thread(target=makeMedicalAppointment, args=([waitingTime]))
+        th.start()
     else:
         messagebox.showwarning('待機時間入力エラー', '待機時間は数値を入力してください。')
         return
 
-    if str(result).find('人目')>=0:
-        #何番目に予約が取れたかをメッセージボックスに表示する
-        messagebox.showinfo('予約完了', '予約が完了しました。' + str(result) + 'です。')
-    else:
-        messagebox.showerror('予約失敗', result)
-
 #終了ボタン押下時処理
 def exitButton_click():
-    if messagebox.askokcancel('終了','終了します。よろしいですか？')==True:
-        quit()
+    quit()
 
 root = Tk()
 root.title('medical_appointment_maker')

@@ -10,6 +10,7 @@ from tkinter import filedialog,messagebox,Radiobutton
 import datetime
 import traceback
 from dateutil.relativedelta import relativedelta
+import threading
 
 #入出金明細のダウンロード処理
 def downloadPaymentDetails(isThisMonth, csvPath):
@@ -18,11 +19,11 @@ def downloadPaymentDetails(isThisMonth, csvPath):
         options.add_argument('--headless')
         driver = webdriver.Chrome('C:\chromedriver_win32\chromedriver.exe',chrome_options=options)
         #ログイン画面にアクセスする
-        driver.get('https://????.co.jp/ibg/')
+        driver.get('https://???')
 
         #ログイン情報を入力し、エンターキー押下でログインする
-        driver.find_element_by_id('account_id').send_keys('xxxx')
-        driver.find_element_by_id('ib_password').send_keys('XXXX')
+        driver.find_element_by_id('account_id').send_keys('???')
+        driver.find_element_by_id('ib_password').send_keys('???')
         driver.find_element_by_id('ib_password').send_keys(Keys.ENTER)
 
         #「入出金明細を見る」ボタンを押下して画面遷移する
@@ -56,8 +57,11 @@ def downloadPaymentDetails(isThisMonth, csvPath):
             #取得したヘッダーと明細の情報をCSVファイルに書き込む
             writer = csv.writer(csv_file)
             writer.writerows(rows)
+
+            messagebox.showinfo('ダウンロード完了', '入出金明細のダウンロードが完了しました。')
+
     except:
-        return traceback.format_exc()
+        messagebox.showerror('異常終了', '例外が発生しました。\n(' + traceback.format_exc() + ')')
 
     finally:
         if driver is not None:
@@ -68,6 +72,7 @@ def pathButton_click():
     #フォルダ選択のダイアログを開き、選択したパスを画面に設定する
     iDir = os.path.abspath(os.path.dirname(__file__))
     dir = filedialog.askdirectory(initialdir=iDir)
+    pathText.delete(0, END)
     pathText.insert(0, dir)
 
 #「入出金明細をダウンロード」ボタン押下時処理
@@ -86,18 +91,14 @@ def downloadPaymentDetailsButton_click():
         isThisMonth = False
         yearMonth = (now - relativedelta(months=1)).strftime('%Y%m')
 
+    #入出金明細のダウンロードを別スレッドで実行
     csvPath = pathText.get() + '\\入出金明細' + yearMonth + '.csv'
-    result = downloadPaymentDetails(isThisMonth, csvPath)
-
-    if result:
-        messagebox.showerror('異常終了', '例外が発生しました。\n(' + result + ')')
-    else:
-        messagebox.showinfo('ダウンロード完了', '入出金明細のダウンロードが完了しました。')
+    th = threading.Thread(target=downloadPaymentDetails, args=([isThisMonth, csvPath]))
+    th.start()
 
 #終了ボタン押下時処理
 def exitButton_click():
-    if messagebox.askokcancel('終了','終了します。よろしいですか？')==True:
-        quit()
+    quit()
 
 root = Tk()
 root.title('payment_details_download')
